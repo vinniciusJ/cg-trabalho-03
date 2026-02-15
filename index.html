@@ -1,0 +1,272 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Sala de Desafio - Colisão Corrigida</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+
+    <script>
+      const ROOM_SIZE = 20;
+      const TOTAL_RED_BUTTONS = 6;
+      const TOTAL_OBSTACLES = 12;
+
+      AFRAME.registerComponent("game-logic", {
+        init: function () {
+          this.buttonsFound = 0;
+          this.container = document.querySelector("#dynamic-area");
+          this.statusText = document.querySelector("#status");
+          this.door = document.querySelector("#door");
+
+          this.el.addEventListener("red-button-pressed", () => {
+            this.buttonsFound++;
+            this.updateUI();
+            if (this.buttonsFound >= TOTAL_RED_BUTTONS) this.openDoor();
+          });
+
+          this.generateMap();
+        },
+
+        generateMap: function () {
+          this.container.innerHTML = "";
+          this.obstacles = [];
+
+          // Gerar Obstáculos (static-body para não atravessar)
+          for (let i = 0; i < TOTAL_OBSTACLES; i++) {
+            let w = Math.random() * 3 + 1;
+            let d = Math.random() * 3 + 1;
+            let x = (Math.random() - 0.5) * 16;
+            let z = (Math.random() - 0.5) * 16;
+
+            let box = document.createElement("a-box");
+            box.setAttribute("position", `${x} 2.5 ${z}`);
+            box.setAttribute("width", w);
+            box.setAttribute("height", 5);
+            box.setAttribute("depth", d);
+            box.setAttribute("color", "#111");
+            box.setAttribute("static-body", ""); // FÍSICA AQUI
+            this.container.appendChild(box);
+            this.obstacles.push({ x, z, r: Math.max(w, d) / 1.5 + 0.5 });
+          }
+
+          // Gerar Botões Vermelhos (evitando obstáculos)
+          for (let i = 0; i < TOTAL_RED_BUTTONS; i++) {
+            let x, z, hit;
+            do {
+              hit = false;
+              x = (Math.random() - 0.5) * 18;
+              z = (Math.random() - 0.5) * 18;
+              this.obstacles.forEach((o) => {
+                if (Math.sqrt((x - o.x) ** 2 + (z - o.z) ** 2) < o.r)
+                  hit = true;
+              });
+            } while (hit);
+
+            let btn = document.createElement("a-cylinder");
+            btn.setAttribute("class", "clickable");
+            btn.setAttribute("position", `${x} 0.1 ${z}`);
+            btn.setAttribute("radius", "0.2");
+            btn.setAttribute("height", "0.1");
+            btn.setAttribute("color", "red");
+            btn.addEventListener("click", function () {
+              if (this.getAttribute("color") === "red") {
+                this.setAttribute("color", "#222");
+                this.sceneEl.emit("red-button-pressed");
+              }
+            });
+            this.container.appendChild(btn);
+          }
+        },
+
+        updateUI: function () {
+          this.statusText.setAttribute(
+            "value",
+            `Botoes: ${this.buttonsFound}/${TOTAL_RED_BUTTONS}`,
+          );
+        },
+
+        openDoor: function () {
+          this.door.setAttribute("animation", {
+            property: "position",
+            to: "0 4.5 -9.8",
+            dur: 2000,
+          });
+          this.statusText.setAttribute("value", "PORTA ABERTA");
+          this.statusText.setAttribute("color", "green");
+        },
+      });
+
+      // Lógica do Botão de Luz com Cooldown
+      AFRAME.registerComponent("light-switch", {
+        init: function () {
+          this.onCooldown = false;
+          this.mainLight = document.querySelector("#main-light");
+          this.el.addEventListener("click", () => {
+            if (this.onCooldown) return;
+            this.onCooldown = true;
+            this.el.setAttribute("color", "#222");
+            this.mainLight.setAttribute("light", "intensity", 0.8);
+
+            setTimeout(
+              () => this.mainLight.setAttribute("light", "intensity", 0),
+              5000,
+            );
+            setTimeout(() => {
+              this.onCooldown = false;
+              this.el.setAttribute("color", "#00BFFF");
+            }, 15000); // 5s ligado + 10s cooldown
+          });
+        },
+      });
+    </script>
+  </head>
+  <body>
+    <a-scene
+      game-logic
+      physics="driver: cannon; debug: false; gravity: 0"
+      cursor="rayOrigin: mouse"
+      raycaster="objects: .clickable"
+    >
+      <a-sky color="#000"></a-sky>
+
+      <a-entity
+        light="type: ambient; color: #554400; intensity: 0.4"
+      ></a-entity>
+      <a-entity
+        id="main-light"
+        light="type: point; intensity: 0; distance: 40"
+        position="0 4 0"
+      ></a-entity>
+
+      <a-plane
+        static-body
+        rotation="-90 0 0"
+        width="20"
+        height="20"
+        color="#111"
+      ></a-plane>
+      <a-plane
+        rotation="90 0 0"
+        position="0 5 0"
+        width="20"
+        height="20"
+        color="#111"
+      ></a-plane>
+
+      <a-box
+        static-body
+        position="0 2.5 -10"
+        width="20"
+        height="5"
+        depth="0.2"
+        color="#111"
+      ></a-box>
+      <a-box
+        static-body
+        position="0 2.5 10"
+        width="20"
+        height="5"
+        depth="0.2"
+        color="#111"
+      ></a-box>
+      <a-box
+        static-body
+        position="-10 2.5 0"
+        rotation="0 90 0"
+        width="20"
+        height="5"
+        depth="0.2"
+        color="#111"
+      ></a-box>
+      <a-box
+        static-body
+        position="10 2.5 0"
+        rotation="0 90 0"
+        width="20"
+        height="5"
+        depth="0.2"
+        color="#111"
+      ></a-box>
+
+      <a-box
+        id="door"
+        static-body
+        position="0 1.5 -9.8"
+        width="2.5"
+        height="3"
+        depth="0.3"
+        color="#333"
+      ></a-box>
+
+      <a-box
+        class="clickable"
+        position="2.5 1 -9.7"
+        width="0.4"
+        height="0.4"
+        depth="0.1"
+        color="yellow"
+        onclick="location.reload()"
+      >
+        <a-text
+          value="RESET"
+          align="center"
+          position="0 0 0.1"
+          width="2"
+          color="black"
+        ></a-text>
+      </a-box>
+
+      <a-box
+        class="clickable"
+        light-switch
+        position="-9.8 1.5 0"
+        rotation="0 90 0"
+        width="0.5"
+        height="0.5"
+        depth="0.1"
+        color="#00BFFF"
+      ></a-box>
+      <a-box
+        class="clickable"
+        light-switch
+        position="9.8 1.5 5"
+        rotation="0 -90 0"
+        width="0.5"
+        height="0.5"
+        depth="0.1"
+        color="#00BFFF"
+      ></a-box>
+
+      <a-entity id="dynamic-area"></a-entity>
+
+      <a-entity
+        id="rig"
+        movement-controls="speed: 0.2"
+        kinematic-body="radius: 0.5"
+        position="0 0 8"
+      >
+        <a-entity camera position="0 1.6 0" look-controls>
+          <a-entity
+            light="type: point; intensity: 0.6; distance: 6; color: #fff"
+            position="0 0 0"
+          ></a-entity>
+          <a-cursor
+            fuse="false"
+            raycaster="objects: .clickable"
+            color="#0F0"
+            scale="0.5 0.5 0.5"
+          ></a-cursor>
+          <a-text
+            id="status"
+            value="Encontre os botoes vermelhos"
+            position="0 -0.5 -1"
+            align="center"
+            width="2"
+            color="white"
+          ></a-text>
+        </a-entity>
+      </a-entity>
+    </a-scene>
+  </body>
+</html>
