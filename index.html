@@ -15,6 +15,7 @@
                 this.shieldDown = false;
                 this.potionState = 0;
                 this.gameOver = false;
+                this.wispsCaught = 0; // Nova variável para a etapa 2
 
                 const instructions = document.querySelector('#hud-text');
                 const hudBg = document.querySelector('#hud-bg');
@@ -46,6 +47,23 @@
                     instructions.setAttribute('value', 'Voce pegou ' + name + '...');
                 };
 
+                // LÓGICA DE CAÇAR OS FOGOS-FÁTUOS (Etapa 2)
+                window.catchWisp = (el) => {
+                    if (this.gameOver) return;
+                    el.setAttribute('visible', 'false');
+                    el.classList.remove('clickable');
+                    this.wispsCaught++;
+                    
+                    if (this.wispsCaught < 3) {
+                        instructions.setAttribute('value', `Voce capturou uma sombra! Faltam ${3 - this.wispsCaught}.`);
+                    } else {
+                        this.shieldDown = true;
+                        document.querySelector('#shield').setAttribute('visible', 'false');
+                        document.querySelector('#energy-crystal').setAttribute('animation', 'property: scale; to: 0 0 0; dur: 500');
+                        instructions.setAttribute('value', 'O escudo do gatinho explodiu! Rapido, va ao caldeirao!');
+                    }
+                };
+
                 restartBtn.addEventListener('click', () => {
                     if(this.gameOver) window.location.reload();
                 });
@@ -58,11 +76,9 @@
 
                 document.querySelector('#magic-tome').addEventListener('click', () => {
                     if(this.gameOver) return;
-                    
                     hudBg.setAttribute('height', '0.35'); 
                     instructions.setAttribute('wrap-count', '50'); 
-                    
-                    instructions.setAttribute('value', '1. Siga as luzes à sua esquerda, encontra a pedra preciosa e a leve ao pedestal adiante.\n2. Rompa o Fragmento Ciano de Pesadelo.\n3. No Caldeirao, use as essencias a seguir, em ordem:\nVerde, Rosa e por fim Azul.');
+                    instructions.setAttribute('value', '1. Siga as luzes, leve o cristal rosa ao pedestal.\n2. Capture as 3 sombras errantes para quebrar o escudo ciano.\n3. No Caldeirao, use as essencias: Verde, Rosa e Azul.');
                 });
 
                 document.querySelector('#pedestal').addEventListener('click', () => {
@@ -79,16 +95,21 @@
                         
                         path.setAttribute('visible', 'false');
                         document.querySelector('#pedestal-crystal-view').setAttribute('visible', 'true');
-                        instructions.setAttribute('value', 'O sonho brilha! Va ao Fragmento Ciano salvar o gatinho.');
+                        
+                        // ATIVA AS SOMBRAS ERRANTES
+                        document.querySelectorAll('.wisp').forEach(wisp => {
+                            wisp.setAttribute('visible', 'true');
+                            wisp.classList.add('clickable');
+                        });
+
+                        instructions.setAttribute('value', 'A luz revelou as Sombras Errantes! Capture as 3 para abrir a jaula.');
                     }
                 });
 
+                // O Cristal Ciano agora não quebra no clique, ele espera os wisps
                 document.querySelector('#energy-crystal').addEventListener('click', () => {
-                    if (this.worldIlluminated) {
-                        resetHUD();
-                        this.shieldDown = true;
-                        document.querySelector('#shield').setAttribute('visible', 'false');
-                        instructions.setAttribute('value', 'O cerco rompeu! Misture as essencias no caldeirao.');
+                    if (this.worldIlluminated && !this.shieldDown) {
+                        instructions.setAttribute('value', 'O cristal e protegido por sombras. Capture-as primeiro!');
                     }
                 });
 
@@ -181,6 +202,17 @@
             <a-entity id="pedestal-crystal-view" gltf-model="#crystal-model" position="0 1.6 0" scale="0.4 0.4 0.4" visible="false"></a-entity>
         </a-entity>
 
+        <a-entity id="wisp-container">
+            <a-sphere class="wisp" position="5 3 -20" radius="0.3" color="#000" material="emissive: #555" visible="false" onclick="catchWisp(this)"
+                animation="property: position; to: -5 5 -25; dur: 3000; dir: alternate; loop: true"></a-sphere>
+            
+            <a-sphere class="wisp" position="-8 2 -15" radius="0.3" color="#000" material="emissive: #555" visible="false" onclick="catchWisp(this)"
+                animation="property: position; to: 8 4 -10; dur: 4000; dir: alternate; loop: true"></a-sphere>
+            
+            <a-sphere class="wisp" position="0 6 -12" radius="0.3" color="#000" material="emissive: #555" visible="false" onclick="catchWisp(this)"
+                animation="property: position; to: 0 1 -30; dur: 5000; dir: alternate; loop: true"></a-sphere>
+        </a-entity>
+
         <a-entity id="final-area" position="0 0 -25">
             <a-entity gltf-model="#table-model" position="-2 0 0" scale="0.15 0.15 0.15">
                 <a-entity id="potion-green" class="clickable" gltf-model="#p-green" position="-3 5 0" scale="3 3 3" onclick="pickUp(this)"></a-entity>
@@ -206,7 +238,7 @@
             <a-cursor color="#fff"></a-cursor>
             <a-entity position="0 0.8 -1.2">
                 <a-plane id="hud-bg" width="1.4" height="0.25" color="#1a0033" opacity="0.9"></a-plane>
-                <a-text id="hud-text" value="Bem vindo(a) ao mundo dos sonhos. Fale com o mago para saber mais..." align="center" width="1.3" color="#d1b2ff" position="0 0 0.01"></a-text>
+                <a-text id="hud-text" value="Fale com o mago para saber mais..." align="center" width="1.3" color="#d1b2ff" position="0 0 0.01"></a-text>
             </a-entity>
             <a-entity id="restart-ui" position="0 0 -1.5" visible="false" scale="0 0 0">
                 <a-plane width="0.8" height="0.25" color="#aa0000"></a-plane>
