@@ -1,272 +1,219 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Sala de Desafio - Colisão Corrigida</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>O Resgate do Gato Mago - O Despertar do Sonho</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
 
     <script>
-      const ROOM_SIZE = 20;
-      const TOTAL_RED_BUTTONS = 6;
-      const TOTAL_OBSTACLES = 12;
+        AFRAME.registerComponent('game-logic', {
+            init: function () {
+                this.isHoldingItem = false;
+                this.heldItem = null;
+                this.worldIlluminated = false;
+                this.shieldDown = false;
+                this.potionState = 0;
+                this.gameOver = false;
 
-      AFRAME.registerComponent("game-logic", {
-        init: function () {
-          this.buttonsFound = 0;
-          this.container = document.querySelector("#dynamic-area");
-          this.statusText = document.querySelector("#status");
-          this.door = document.querySelector("#door");
+                const instructions = document.querySelector('#hud-text');
+                const hudBg = document.querySelector('#hud-bg');
+                const scene = document.querySelector('a-scene');
+                const restartBtn = document.querySelector('#restart-ui');
+                const path = document.querySelector('#path');
 
-          this.el.addEventListener("red-button-pressed", () => {
-            this.buttonsFound++;
-            this.updateUI();
-            if (this.buttonsFound >= TOTAL_RED_BUTTONS) this.openDoor();
-          });
+                const itemLore = {
+                    'pink-crystal': 'o cristal. Agora coloque no pedestal',
+                    'potion-green': 'o Suspiro da Floresta',
+                    'potion-pink': 'o Orvalho das Memorias',
+                    'potion-blue': 'a Essencia do Firmamento'
+                };
 
-          this.generateMap();
-        },
+                const resetHUD = () => {
+                    hudBg.setAttribute('height', '0.25');
+                    instructions.setAttribute('wrap-count', '40');
+                };
 
-        generateMap: function () {
-          this.container.innerHTML = "";
-          this.obstacles = [];
+                window.pickUp = (el) => {
+                    if (this.isHoldingItem || this.gameOver) return;
+                    resetHUD();
+                    this.isHoldingItem = true;
+                    this.heldItem = el;
+                    el.setAttribute('position', '0.3 -0.4 -0.8'); 
+                    document.querySelector('#player-camera').appendChild(el);
+                    
+                    const name = itemLore[el.id] || "este fragmento";
+                    instructions.setAttribute('value', 'Voce pegou ' + name + '...');
+                };
 
-          // Gerar Obstáculos (static-body para não atravessar)
-          for (let i = 0; i < TOTAL_OBSTACLES; i++) {
-            let w = Math.random() * 3 + 1;
-            let d = Math.random() * 3 + 1;
-            let x = (Math.random() - 0.5) * 16;
-            let z = (Math.random() - 0.5) * 16;
+                restartBtn.addEventListener('click', () => {
+                    if(this.gameOver) window.location.reload();
+                });
 
-            let box = document.createElement("a-box");
-            box.setAttribute("position", `${x} 2.5 ${z}`);
-            box.setAttribute("width", w);
-            box.setAttribute("height", 5);
-            box.setAttribute("depth", d);
-            box.setAttribute("color", "#111");
-            box.setAttribute("static-body", ""); // FÍSICA AQUI
-            this.container.appendChild(box);
-            this.obstacles.push({ x, z, r: Math.max(w, d) / 1.5 + 0.5 });
-          }
+                document.querySelector('#lizard').addEventListener('click', () => {
+                    if(this.gameOver) return;
+                    resetHUD();
+                    instructions.setAttribute('value', 'O Pesadelo aprisionou o seu gatinho. Leia o Diario Mistico ao meu lado para saber como resgata-lo!');
+                });
 
-          // Gerar Botões Vermelhos (evitando obstáculos)
-          for (let i = 0; i < TOTAL_RED_BUTTONS; i++) {
-            let x, z, hit;
-            do {
-              hit = false;
-              x = (Math.random() - 0.5) * 18;
-              z = (Math.random() - 0.5) * 18;
-              this.obstacles.forEach((o) => {
-                if (Math.sqrt((x - o.x) ** 2 + (z - o.z) ** 2) < o.r)
-                  hit = true;
-              });
-            } while (hit);
+                document.querySelector('#magic-tome').addEventListener('click', () => {
+                    if(this.gameOver) return;
+                    
+                    hudBg.setAttribute('height', '0.35'); 
+                    instructions.setAttribute('wrap-count', '50'); 
+                    
+                    instructions.setAttribute('value', '1. Siga as luzes à sua esquerda, encontra a pedra preciosa e a leve ao pedestal adiante.\n2. Rompa o Fragmento Ciano de Pesadelo.\n3. No Caldeirao, use as essencias a seguir, em ordem:\nVerde, Rosa e por fim Azul.');
+                });
 
-            let btn = document.createElement("a-cylinder");
-            btn.setAttribute("class", "clickable");
-            btn.setAttribute("position", `${x} 0.1 ${z}`);
-            btn.setAttribute("radius", "0.2");
-            btn.setAttribute("height", "0.1");
-            btn.setAttribute("color", "red");
-            btn.addEventListener("click", function () {
-              if (this.getAttribute("color") === "red") {
-                this.setAttribute("color", "#222");
-                this.sceneEl.emit("red-button-pressed");
-              }
-            });
-            this.container.appendChild(btn);
-          }
-        },
+                document.querySelector('#pedestal').addEventListener('click', () => {
+                    if (this.isHoldingItem && this.heldItem.id === 'pink-crystal') {
+                        resetHUD();
+                        this.heldItem.setAttribute('visible', 'false');
+                        this.isHoldingItem = false;
+                        this.worldIlluminated = true;
+                        
+                        document.querySelector('#main-light').setAttribute('intensity', '1.2');
+                        document.querySelector('#ambient-light').setAttribute('intensity', '0.4');
+                        document.querySelector('#start-light').setAttribute('intensity', '0');
+                        scene.setAttribute('fog', 'density: 0.01; color: #12042b');
+                        
+                        path.setAttribute('visible', 'false');
+                        document.querySelector('#pedestal-crystal-view').setAttribute('visible', 'true');
+                        instructions.setAttribute('value', 'O sonho brilha! Va ao Fragmento Ciano salvar o gatinho.');
+                    }
+                });
 
-        updateUI: function () {
-          this.statusText.setAttribute(
-            "value",
-            `Botoes: ${this.buttonsFound}/${TOTAL_RED_BUTTONS}`,
-          );
-        },
+                document.querySelector('#energy-crystal').addEventListener('click', () => {
+                    if (this.worldIlluminated) {
+                        resetHUD();
+                        this.shieldDown = true;
+                        document.querySelector('#shield').setAttribute('visible', 'false');
+                        instructions.setAttribute('value', 'O cerco rompeu! Misture as essencias no caldeirao.');
+                    }
+                });
 
-        openDoor: function () {
-          this.door.setAttribute("animation", {
-            property: "position",
-            to: "0 4.5 -9.8",
-            dur: 2000,
-          });
-          this.statusText.setAttribute("value", "PORTA ABERTA");
-          this.statusText.setAttribute("color", "green");
-        },
-      });
+                document.querySelector('#cauldron').addEventListener('click', () => {
+                    if (this.gameOver || !this.shieldDown || !this.isHoldingItem) return;
 
-      // Lógica do Botão de Luz com Cooldown
-      AFRAME.registerComponent("light-switch", {
-        init: function () {
-          this.onCooldown = false;
-          this.mainLight = document.querySelector("#main-light");
-          this.el.addEventListener("click", () => {
-            if (this.onCooldown) return;
-            this.onCooldown = true;
-            this.el.setAttribute("color", "#222");
-            this.mainLight.setAttribute("light", "intensity", 0.8);
+                    const heldId = this.heldItem.id;
+                    let correct = false;
 
-            setTimeout(
-              () => this.mainLight.setAttribute("light", "intensity", 0),
-              5000,
-            );
-            setTimeout(() => {
-              this.onCooldown = false;
-              this.el.setAttribute("color", "#00BFFF");
-            }, 15000); // 5s ligado + 10s cooldown
-          });
-        },
-      });
+                    if (heldId === 'potion-green' && this.potionState === 0) { this.potionState = 1; correct = true; }
+                    else if (heldId === 'potion-pink' && this.potionState === 1) { this.potionState = 2; correct = true; }
+                    else if (heldId === 'potion-blue' && this.potionState === 2) { this.potionState = 3; correct = true; }
+
+                    if (correct) {
+                        resetHUD();
+                        this.heldItem.setAttribute('visible', 'false');
+                        this.isHoldingItem = false;
+                        this.heldItem = null;
+                        
+                        if (this.potionState === 3) {
+                            instructions.setAttribute('value', 'O Elixir esta vibrando! O Gato Mago esta acordando!');
+                        } else {
+                            instructions.setAttribute('value', 'A essencia foi absorvida pelo caldeirao...');
+                        }
+                    } else if (heldId.includes('potion')) {
+                        this.gameOver = true;
+                        hudBg.setAttribute('height', '0.3');
+                        instructions.setAttribute('value', 'O Sonho colapsou! A ordem estava errada.');
+                        instructions.setAttribute('color', '#ff4444');
+                        restartBtn.setAttribute('visible', 'true');
+                        restartBtn.setAttribute('scale', '1 1 1');
+                        restartBtn.classList.add('clickable');
+                    }
+
+                    if (this.potionState === 3 && !this.isHoldingItem) {
+                        document.querySelector('#cage').setAttribute('animation', 'property: position; to: 0 20 0; dur: 4000; easing: easeInBack');
+                        instructions.setAttribute('value', 'O GATO MAGO DESPERTOU! Voce o salvou!');
+                    }
+                });
+            }
+        });
     </script>
-  </head>
-  <body>
-    <a-scene
-      game-logic
-      physics="driver: cannon; debug: false; gravity: 0"
-      cursor="rayOrigin: mouse"
-      raycaster="objects: .clickable"
-    >
-      <a-sky color="#000"></a-sky>
+</head>
+<body>
 
-      <a-entity
-        light="type: ambient; color: #554400; intensity: 0.4"
-      ></a-entity>
-      <a-entity
-        id="main-light"
-        light="type: point; intensity: 0; distance: 40"
-        position="0 4 0"
-      ></a-entity>
+    <a-scene game-logic cursor="rayOrigin: mouse" raycaster="objects: .clickable" fog="type: exponential; color: #000; density: 0.15">
+        
+        <a-assets>
+            <a-asset-item id="lizard-model" src="lizard_wizard.glb"></a-asset-item>
+            <a-asset-item id="cat-model" src="wizard_cat.glb"></a-asset-item>
+            <a-asset-item id="tome-model" src="magic_tome.glb"></a-asset-item>
+            <a-asset-item id="rune-stone-model" src="ancient_rune_stone.glb"></a-asset-item>
+            <a-asset-item id="cage-model" src="cage.glb"></a-asset-item>
+            <a-asset-item id="cauldron-model" src="cauldron.glb"></a-asset-item>
+            <a-asset-item id="table-model" src="table.glb"></a-asset-item>
+            <a-asset-item id="crystal-model" src="crystal.glb"></a-asset-item>
+            <a-asset-item id="p-green" src="green-potion.glb"></a-asset-item>
+            <a-asset-item id="p-pink" src="pink-potion.glb"></a-asset-item>
+            <a-asset-item id="p-blue" src="blue-potion.glb"></a-asset-item>
+        </a-assets>
 
-      <a-plane
-        static-body
-        rotation="-90 0 0"
-        width="20"
-        height="20"
-        color="#111"
-      ></a-plane>
-      <a-plane
-        rotation="90 0 0"
-        position="0 5 0"
-        width="20"
-        height="20"
-        color="#111"
-      ></a-plane>
+        <a-entity environment="preset: dream; dressingAmount: 0; ground: flat; lighting: none;"></a-entity>
 
-      <a-box
-        static-body
-        position="0 2.5 -10"
-        width="20"
-        height="5"
-        depth="0.2"
-        color="#111"
-      ></a-box>
-      <a-box
-        static-body
-        position="0 2.5 10"
-        width="20"
-        height="5"
-        depth="0.2"
-        color="#111"
-      ></a-box>
-      <a-box
-        static-body
-        position="-10 2.5 0"
-        rotation="0 90 0"
-        width="20"
-        height="5"
-        depth="0.2"
-        color="#111"
-      ></a-box>
-      <a-box
-        static-body
-        position="10 2.5 0"
-        rotation="0 90 0"
-        width="20"
-        height="5"
-        depth="0.2"
-        color="#111"
-      ></a-box>
+        <a-light id="main-light" type="point" intensity="0" position="0 10 -10" color="#ffb6c1"></a-light>
+        <a-light id="ambient-light" type="ambient" intensity="0.02"></a-light>
+        <a-light id="start-light" type="spot" position="0 5 3" target="#lizard" intensity="1.5" angle="40"></a-light>
 
-      <a-box
-        id="door"
-        static-body
-        position="0 1.5 -9.8"
-        width="2.5"
-        height="3"
-        depth="0.3"
-        color="#333"
-      ></a-box>
-
-      <a-box
-        class="clickable"
-        position="2.5 1 -9.7"
-        width="0.4"
-        height="0.4"
-        depth="0.1"
-        color="yellow"
-        onclick="location.reload()"
-      >
-        <a-text
-          value="RESET"
-          align="center"
-          position="0 0 0.1"
-          width="2"
-          color="black"
-        ></a-text>
-      </a-box>
-
-      <a-box
-        class="clickable"
-        light-switch
-        position="-9.8 1.5 0"
-        rotation="0 90 0"
-        width="0.5"
-        height="0.5"
-        depth="0.1"
-        color="#00BFFF"
-      ></a-box>
-      <a-box
-        class="clickable"
-        light-switch
-        position="9.8 1.5 5"
-        rotation="0 -90 0"
-        width="0.5"
-        height="0.5"
-        depth="0.1"
-        color="#00BFFF"
-      ></a-box>
-
-      <a-entity id="dynamic-area"></a-entity>
-
-      <a-entity
-        id="rig"
-        movement-controls="speed: 0.2"
-        kinematic-body="radius: 0.5"
-        position="0 0 8"
-      >
-        <a-entity camera position="0 1.6 0" look-controls>
-          <a-entity
-            light="type: point; intensity: 0.6; distance: 6; color: #fff"
-            position="0 0 0"
-          ></a-entity>
-          <a-cursor
-            fuse="false"
-            raycaster="objects: .clickable"
-            color="#0F0"
-            scale="0.5 0.5 0.5"
-          ></a-cursor>
-          <a-text
-            id="status"
-            value="Encontre os botoes vermelhos"
-            position="0 -0.5 -1"
-            align="center"
-            width="2"
-            color="white"
-          ></a-text>
+        <a-entity id="lizard" class="clickable" gltf-model="#lizard-model" position="0.5 0.8 2" scale="0.2 0.2 0.2"></a-entity>
+        <a-entity id="magic-tome" class="clickable" gltf-model="#tome-model" position="-0.5 0.5 2.5" scale="0.3 0.3 0.3" rotation="0 45 0"></a-entity>
+        
+        <a-entity id="path">
+            <a-sphere position="-2 0.5 4" radius="0.08" material="emissive: white"></a-sphere>
+            <a-sphere position="-5 0.5 6" radius="0.08" material="emissive: white"></a-sphere>
+            <a-sphere position="-8 0.5 7.5" radius="0.08" material="emissive: white"></a-sphere>
+            <a-sphere position="-12 0.5 9" radius="0.08" material="emissive: white"></a-sphere>
+            <a-sphere position="-15 0.5 10.5" radius="0.08" material="emissive: white"></a-sphere>
         </a-entity>
-      </a-entity>
+
+        <a-entity id="pink-crystal" class="clickable" gltf-model="#crystal-model" position="-10 0.5 8" scale="0.4 0.4 0.4" onclick="pickUp(this)">
+             <a-light type="point" intensity="0.5" color="#ff69b4" distance="3"></a-light>
+        </a-entity>
+
+        <a-entity id="pedestal" class="clickable" position="-18 0 12" scale="0.7 0.7 0.7">
+            <a-cylinder radius="1" height="0.1" color="#2a0a3b"></a-cylinder>
+            <a-entity animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+                <a-torus radius="0.8" radius-tubular="0.05" position="0 0.3 0" color="#4b0082" rotation="10 0 0"></a-torus>
+                <a-torus radius="0.4" radius-tubular="0.03" position="0 0.9 0" color="#ff69b4" material="emissive: #ff69b4"></a-torus>
+            </a-entity>
+            <a-cone position="0 1.2 0" radius-bottom="0.3" height="0.4" color="#ffd700" rotation="180 0 0"></a-cone>
+            <a-entity id="pedestal-crystal-view" gltf-model="#crystal-model" position="0 1.6 0" scale="0.4 0.4 0.4" visible="false"></a-entity>
+        </a-entity>
+
+        <a-entity id="final-area" position="0 0 -25">
+            <a-entity gltf-model="#table-model" position="-2 0 0" scale="0.15 0.15 0.15">
+                <a-entity id="potion-green" class="clickable" gltf-model="#p-green" position="-3 5 0" scale="3 3 3" onclick="pickUp(this)"></a-entity>
+                <a-entity id="potion-pink" class="clickable" gltf-model="#p-pink" position="0 6 0" scale="2 2 2" onclick="pickUp(this)"></a-entity>
+                <a-entity id="potion-blue" class="clickable" gltf-model="#p-blue" position="3 5 0" scale="0.2 0.2 0.2" onclick="pickUp(this)"></a-entity>
+            </a-entity>
+
+            <a-entity id="cauldron" class="clickable" gltf-model="#cauldron-model" position="1 0 0" scale="0.2 0.2 0.2"></a-entity>
+
+            <a-entity id="cat-jail-setup" position="8 0 -2">
+                <a-entity id="rune-stone" gltf-model="#rune-stone-model" scale="3 3 3"></a-entity>
+                <a-entity id="cat" gltf-model="#cat-model" position="0 1 0" scale="0.3 0.3 0.3"></a-entity>
+                <a-entity id="cage" gltf-model="#cage-model" position="0 1 0" scale="1.2 1.2 1.2"></a-entity>
+                <a-sphere id="shield" radius="3.2" color="#ff00ff" material="opacity: 0.15; transparent: true"></a-sphere>
+            </a-entity>
+
+            <a-entity id="energy-crystal" class="clickable" position="15 1.5 -2">
+                <a-octahedron radius="0.7" color="#00ffff" opacity="0.8"></a-octahedron>
+            </a-entity>
+        </a-entity>
+
+        <a-entity id="player-camera" camera look-controls wasd-controls position="0 1.6 8">
+            <a-cursor color="#fff"></a-cursor>
+            <a-entity position="0 0.8 -1.2">
+                <a-plane id="hud-bg" width="1.4" height="0.25" color="#1a0033" opacity="0.9"></a-plane>
+                <a-text id="hud-text" value="Bem vindo(a) ao mundo dos sonhos. Fale com o mago para saber mais..." align="center" width="1.3" color="#d1b2ff" position="0 0 0.01"></a-text>
+            </a-entity>
+            <a-entity id="restart-ui" position="0 0 -1.5" visible="false" scale="0 0 0">
+                <a-plane width="0.8" height="0.25" color="#aa0000"></a-plane>
+                <a-text value="RECORDE O SONHO" align="center" width="2" color="white" position="0 0 0.02"></a-text>
+            </a-entity>
+        </a-entity>
+
     </a-scene>
-  </body>
+</body>
 </html>
