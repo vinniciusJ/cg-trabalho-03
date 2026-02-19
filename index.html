@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>O Resgate do Gato Mago - O Despertar do Sonho</title>
+    <title>O Resgate do Gatinho</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
 
@@ -44,13 +44,12 @@
           };
 
           document.querySelector("#lizard").addEventListener("click", () => {
-            instructions.setAttribute("value", "Bem-vindo! Abra o Diario Mistico ao meu lado para entender o ritual.");
+            instructions.setAttribute("value", "O seu gatinho foi raptado e eu estou aqui para te ajudar. Para saber mais, abra o Diario Mistico ao meu lado.");
           });
 
           document.querySelector("#magic-tome").addEventListener("click", () => {
-            hudBg.setAttribute("height", "0.5");
-            instructions.setAttribute("wrap-count", "45");
-            instructions.setAttribute("value", "O Gato Mago foi preso! Capture as 3 sombras errantes para quebrar o escudo e depois prepare a pocao no caldeirao para liberta-lo.\n\n(Clique em INICIAR abaixo)");
+            instructions.setAttribute("wrap-count", "40");
+            instructions.setAttribute("value", "Para liberar o gatinho capture as 3 sombras errantes para quebrar o escudo e depois prepare a pocao no caldeirao para liberta-lo");
             playBtn.setAttribute("visible", "true");
             playBtn.setAttribute("scale", "1 1 1");
           });
@@ -87,7 +86,8 @@
               this.shieldDown = true;
               document.querySelector("#shield").setAttribute("visible", "false");
               rig.setAttribute("animation", "property: position; to: 0 0 -21; dur: 1500; easing: easeInOutQuad");
-              instructions.setAttribute("value", "Escudo quebrado! Siga para o altar.");
+              hudBg.setAttribute("height", "0.4");
+              instructions.setAttribute("value", "O escudo foi quebrado! Siga para a preparaca da pocao. \n Obs: utilize a ordem: verde, rosa e azul.");
             }
           };
 
@@ -108,7 +108,7 @@
               this.heldItem.setAttribute("visible", "false");
               this.isHoldingItem = false;
               this.heldItem = null;
-              instructions.setAttribute("value", this.potionState === 3 ? "O Gato Mago esta acordando!" : "Essencia aceita...");
+              instructions.setAttribute("value", this.potionState === 3 ? "O gatinho está sendo liberto!" : "Essencia aceita...");
             } else if (heldId.includes("potion")) {
               this.gameOver = true;
               instructions.setAttribute("value", "Ordem errada! O sonho colapsou.");
@@ -120,7 +120,7 @@
 
             if (this.potionState === 3 && !this.isHoldingItem) {
               document.querySelector("#cage").setAttribute("animation", "property: position; to: 1.5 20 -2; dur: 4000; easing: easeInBack");
-              instructions.setAttribute("value", "O GATO MAGO DESPERTOU!");
+              instructions.setAttribute("value", "O gatinho foi libertado!");
             }
           });
         },
@@ -146,8 +146,8 @@
       <a-light type="point" intensity="1.2" position="0 10 -10" color="#ffb6c1"></a-light>
       <a-light type="ambient" intensity="0.4"></a-light>
 
-      <a-entity id="lizard" class="clickable" gltf-model="#lizard-model" position="1.2 0 2" scale="0.2 0.2 0.2" rotation="0 -40 0"></a-entity>
-      <a-entity id="magic-tome" class="clickable" gltf-model="#tome-model" position="-1.2 0.6 2" scale="0.3 0.3 0.3" rotation="0 40 0"></a-entity>
+      <a-entity id="lizard" class="clickable" gltf-model="#lizard-model" position="1.2 1.2 2" scale="0.3 0.3 0.3" rotation="0 -40 0"></a-entity>
+      <a-entity id="magic-tome" class="clickable" gltf-model="#tome-model" position="-1.2 0.6 2" scale="0.4 0.4. 0.4" rotation="0 40 0"></a-entity>
 
       <a-entity id="wisp-container">
         <a-entity position="5 3 -22" animation="property: position; to: -5 5 -22; dur: 3000; dir: alternate; loop: true">
@@ -162,13 +162,13 @@
       </a-entity>
 
       <a-entity id="final-area" position="0 0 -25">
-        <a-entity gltf-model="#table-model" position="-1.5 0 0" scale="0.15 0.15 0.15">
+        <a-entity gltf-model="#table-model" position="-3 0 0" scale="0.15 0.15 0.15">
           <a-entity id="potion-green" class="clickable" gltf-model="#p-green" position="-3 5 0" scale="3 3 3" onclick="pickUp(this)"></a-entity>
           <a-entity id="potion-pink" class="clickable" gltf-model="#p-pink" position="0 6 0" scale="2 2 2" onclick="pickUp(this)"></a-entity>
           <a-entity id="potion-blue" class="clickable" gltf-model="#p-blue" position="3 5 0" scale="0.2 0.2 0.2" onclick="pickUp(this)"></a-entity>
         </a-entity>
-        <a-entity id="cauldron" class="clickable" gltf-model="#cauldron-model" position="0 0.1 0" scale="0.2 0.2 0.2"></a-entity>
-        <a-entity id="cat-jail-setup" position="1.5 0 -2">
+        <a-entity id="cauldron" class="clickable" gltf-model="#cauldron-model" position="0 0 0" scale="0.2 0.2 0.2"></a-entity>
+        <a-entity id="cat-jail-setup" position="4 0 -2">
           <a-entity gltf-model="#rune-stone-model" scale="3 3 3"></a-entity>
           <a-entity id="cat" gltf-model="#cat-model" position="0 1 0" scale="0.3 0.3 0.3"></a-entity>
           <a-entity id="cage" gltf-model="#cage-model" position="0 1 0" scale="1.2 1.2 1.2"></a-entity>
@@ -180,8 +180,8 @@
         <a-entity id="player-camera" camera look-controls wasd-controls position="0 1.6 0">
           <a-cursor color="#fff"></a-cursor>
           <a-entity position="0 0.8 -1.2">
-            <a-plane id="hud-bg" width="1.4" height="0.25" color="#1a0033" opacity="0.9"></a-plane>
-            <a-text id="hud-text" font="dejavu" value="Clique no Mago para comecar..." align="center" width="1.3" color="#d1b2ff" position="0 0 0.05"></a-text>
+            <a-plane id="hud-bg" width="1.4" height="0.35" color="#1a0033" opacity="0.9"></a-plane>
+            <a-text id="hud-text" font="dejavu" value="Boas vindas ao mundo dos sonhos. Clique no Lizard Wizard para comecar..." align="center" width="1.3" color="#d1b2ff" position="0 0 0.05"></a-text>
           </a-entity>
 
           <a-entity position="0 -0.2 -1.1">
@@ -197,7 +197,9 @@
         </a-entity>
 
         <a-entity oculus-touch-controls="hand: right" raycaster="objects: .clickable; showLine: true; far: 40" vr-interactor></a-entity>
-        <a-entity oculus-touch-controls="hand: left"></a-entity>
+        <a-entity oculus-touch-controls="hand: right" raycaster="objects: .clickable; showLine: true; lineColor: #d1b2ff; far: 40" vr-interactor></a-entity>
+
+        <a-entity oculus-touch-controls="hand: left" raycaster="objects: .clickable; showLine: true; lineColor: #d1b2ff; far: 40" vr-interactor></a-entity>
       </a-entity>
     </a-scene>
   </body>

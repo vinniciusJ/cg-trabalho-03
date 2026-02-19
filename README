@@ -10,9 +10,8 @@ Este projeto é uma experiência imersiva de Realidade Virtual desenvolvida com 
 O Reino dos Sonhos foi invadido por uma névoa densa e escura. O **Gato Mago**, protetor da aurora, foi aprisionado por fragmentos de pesadelo. Através de uma narrativa lúdica, o jogador deve interagir com o ambiente para restaurar a luz e realizar o ritual de libertação.
 
 ### As Etapas do Desafio:
-1.  **O Despertar da Luz:** O jogador deve encontrar o Cristal Rosa escondido na escuridão e levá-lo até o pedestal místico.
-2.  **A Caça às Sombras:** Uma vez que o mundo se ilumina, o jogador precisa localizar e capturar **3 Sombras Errantes** (esferas pretas volantes) que protegem a jaula.
-3.  **O Ritual Alquímico:** No altar final, é necessário misturar três essências no caldeirão seguindo a ordem exata ditada pelo Diário Místico: **Verde -> Rosa -> Azul**. Caso o jogador erre a sequência, o sonho colapsa e o ritual deve ser reiniciado.
+1.  **A Caça às Sombras:** O jogador precisa localizar e capturar **3 Sombras Errantes** (esferas volantes) que protegem a jaula.
+3.  **O Ritual Alquímico:** No altar final, é necessário misturar três essências no caldeirão seguindo a ordem exata: **Verde -> Rosa -> Azul**. Caso o jogador erre a sequência, o sonho colapsa e o ritual deve ser reiniciado.
 
 ## Controles
 
@@ -22,7 +21,6 @@ O Reino dos Sonhos foi invadido por uma névoa densa e escura. O **Gato Mago**, 
 * **Clique Esquerdo:** Interagir com objetos (Mago, Livro, Cristais e Poções).
 
 ### No Meta Quest (VR):
-* **Joystick:** Movimentação.
 * **Gatilho (Trigger):** Apontar o laser e clicar para coletar e interagir com os elementos.
 
 ## Como Executar o Projeto
@@ -39,5 +37,4 @@ Como o projeto utiliza o framework A-Frame, ele roda diretamente no navegador, m
 * **A-Frame:** Framework para experiências 3D e VR.
 * **A-Frame Environment Component:** Criação do bioma "Dream".
 * **JavaScript (ES6):** Lógica de estados, inventário e interações.
-* **MSDF Fonts:** Utilização da fonte *Exo2Bold* para suporte a caracteres acentuados da língua portuguesa.
 * **Modelos 3D:** Formato `.glb` para personagens e itens.
