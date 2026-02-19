@@ -7,7 +7,6 @@
     <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
 
     <script>
-      // Componente para interação VR via trigger dos controles Meta Quest 2
       AFRAME.registerComponent("vr-interactor", {
         init: function () {
           const el = this.el;
@@ -22,15 +21,11 @@
             const target = intersections[0].object.el;
             if (!target || !target.classList.contains("clickable")) return;
 
-            // Dispara evento de click no elemento
+            // ESTA LINHA É ESSENCIAL: ela avisa ao caldeirão e aos outros que houve um clique
             target.emit("click", {}, true);
 
-            // Chama funções inline (pickUp / catchWisp)
-            const onclickAttr = target.getAttribute("onclick");
-            if (onclickAttr) {
-              if (onclickAttr.includes("pickUp")) pickUp(target);
-              else if (onclickAttr.includes("catchWisp")) catchWisp(target);
-            }
+            // REMOVEMOS o bloco "if (onclickAttr)..." que estava aqui embaixo.
+            // Isso evita que a função seja chamada duas vezes no mesmo clique.
           });
         },
       });
