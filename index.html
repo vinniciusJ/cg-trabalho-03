@@ -7,6 +7,34 @@
     <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
 
     <script>
+      // Componente para interação VR via trigger dos controles Meta Quest 2
+      AFRAME.registerComponent("vr-interactor", {
+        init: function () {
+          const el = this.el;
+
+          el.addEventListener("triggerdown", () => {
+            const raycasterComp = el.components["raycaster"];
+            if (!raycasterComp) return;
+
+            const intersections = raycasterComp.intersections;
+            if (!intersections || intersections.length === 0) return;
+
+            const target = intersections[0].object.el;
+            if (!target || !target.classList.contains("clickable")) return;
+
+            // Dispara evento de click no elemento
+            target.emit("click", {}, true);
+
+            // Chama funções inline (pickUp / catchWisp)
+            const onclickAttr = target.getAttribute("onclick");
+            if (onclickAttr) {
+              if (onclickAttr.includes("pickUp")) pickUp(target);
+              else if (onclickAttr.includes("catchWisp")) catchWisp(target);
+            }
+          });
+        },
+      });
+
       AFRAME.registerComponent("game-logic", {
         init: function () {
           this.isHoldingItem = false;
@@ -32,8 +60,6 @@
             instructions.setAttribute("wrap-count", "40");
           };
 
-          // Start immediately in the wisp-catching phase
-          // World is already illuminated
           scene.setAttribute("fog", "density: 0.01; color: #12042b");
           document
             .querySelector("#main-light")
@@ -42,7 +68,6 @@
             .querySelector("#ambient-light")
             .setAttribute("intensity", "0.4");
 
-          // Show and activate wisps immediately
           document.querySelectorAll(".wisp").forEach((wisp) => {
             wisp.setAttribute("visible", "true");
             wisp.classList.add("clickable");
@@ -199,7 +224,7 @@
       <a-light id="ambient-light" type="ambient" intensity="0.4"></a-light>
 
       <a-entity id="wisp-container">
-        <!-- Wisp 1: pai move em X, filho move em Y -->
+        <!-- Wisp 1 -->
         <a-entity
           position="5 3 -18"
           animation="property: position; from: 5 3 -18; to: -5 3 -18; dur: 3000; dir: alternate; loop: true"
@@ -215,7 +240,7 @@
           ></a-sphere>
         </a-entity>
 
-        <!-- Wisp 2: pai move em X, filho move em Y -->
+        <!-- Wisp 2 -->
         <a-entity
           position="-8 2 -18"
           animation="property: position; from: -8 2 -18; to: 8 2 -18; dur: 4000; dir: alternate; loop: true"
@@ -231,7 +256,7 @@
           ></a-sphere>
         </a-entity>
 
-        <!-- Wisp 3: pai move em X, filho move em Y -->
+        <!-- Wisp 3 -->
         <a-entity
           position="0 4 -18"
           animation="property: position; from: 0 4 -18; to: 6 4 -18; dur: 5000; dir: alternate; loop: true"
@@ -323,46 +348,64 @@
         </a-entity>
       </a-entity>
 
-      <a-entity
-        id="player-camera"
-        camera
-        look-controls
-        wasd-controls
-        position="0 1.6 -5"
-      >
-        <a-cursor color="#fff"></a-cursor>
-        <a-entity position="0 0.8 -1.2">
-          <a-plane
-            id="hud-bg"
-            width="1.4"
-            height="0.25"
-            color="#1a0033"
-            opacity="0.9"
-          ></a-plane>
-          <a-text
-            id="hud-text"
-            value="Capture as 3 Sombras Errantes para quebrar o escudo da prisao do gatinho!"
-            align="center"
-            width="1.3"
-            color="#d1b2ff"
-            position="0 0 0.01"
-          ></a-text>
-        </a-entity>
+      <!-- Rig: mantém posição em modo VR e desktop. Câmera e controles são filhos. -->
+      <a-entity id="rig" position="0 0 -10">
+        <!-- Câmera -->
         <a-entity
-          id="restart-ui"
-          position="0 0 -1.5"
-          visible="false"
-          scale="0 0 0"
+          id="player-camera"
+          camera
+          look-controls
+          wasd-controls
+          position="0 1.6 0"
         >
-          <a-plane width="0.8" height="0.25" color="#aa0000"></a-plane>
-          <a-text
-            value="RECORDE O SONHO"
-            align="center"
-            width="2"
-            color="white"
-            position="0 0 0.02"
-          ></a-text>
+          <a-cursor color="#fff"></a-cursor>
+          <a-entity position="0 0.8 -1.2">
+            <a-plane
+              id="hud-bg"
+              width="1.4"
+              height="0.25"
+              color="#1a0033"
+              opacity="0.9"
+            ></a-plane>
+            <a-text
+              id="hud-text"
+              value="Capture as 3 Sombras Errantes para quebrar o escudo da prisao do gatinho!"
+              align="center"
+              width="1.3"
+              color="#d1b2ff"
+              position="0 0 0.01"
+            ></a-text>
+          </a-entity>
+          <a-entity
+            id="restart-ui"
+            position="0 0 -1.5"
+            visible="false"
+            scale="0 0 0"
+          >
+            <a-plane width="0.8" height="0.25" color="#aa0000"></a-plane>
+            <a-text
+              value="RECORDE O SONHO"
+              align="center"
+              width="2"
+              color="white"
+              position="0 0 0.02"
+            ></a-text>
+          </a-entity>
         </a-entity>
+
+        <!-- Controle direito Meta Quest 2: raycaster visual + trigger para interação -->
+        <a-entity
+          id="right-controller"
+          oculus-touch-controls="hand: right"
+          raycaster="objects: .clickable; showLine: true; lineColor: #d1b2ff; lineOpacity: 0.6; far: 30"
+          vr-interactor
+        ></a-entity>
+
+        <!-- Controle esquerdo Meta Quest 2 -->
+        <a-entity
+          id="left-controller"
+          oculus-touch-controls="hand: left"
+        ></a-entity>
       </a-entity>
     </a-scene>
   </body>
