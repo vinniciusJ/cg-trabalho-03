@@ -107,15 +107,14 @@
               document
                 .querySelector("#shield")
                 .setAttribute("visible", "false");
-              document
-                .querySelector("#energy-crystal")
-                .setAttribute(
-                  "animation",
-                  "property: scale; to: 0 0 0; dur: 500",
-                );
+              
+              const rig = document.querySelector("#rig");
+
+              rig.setAttribute("animation", "property: position; to: 0 0 -20; dur: 1500; easing: easeInOutQuad");
+              
               instructions.setAttribute(
                 "value",
-                "O escudo da prisao do gatinho explodiu! Rapido, va ao caldeirao!",
+                "O escudo explodiu! Voce foi levado ao altar!",
               );
             }
           };
@@ -224,7 +223,6 @@
       <a-light id="ambient-light" type="ambient" intensity="0.4"></a-light>
 
       <a-entity id="wisp-container">
-        <!-- Wisp 1 -->
         <a-entity
           position="5 3 -18"
           animation="property: position; from: 5 3 -18; to: -5 3 -18; dur: 3000; dir: alternate; loop: true"
@@ -240,7 +238,6 @@
           ></a-sphere>
         </a-entity>
 
-        <!-- Wisp 2 -->
         <a-entity
           position="-8 2 -18"
           animation="property: position; from: -8 2 -18; to: 8 2 -18; dur: 4000; dir: alternate; loop: true"
@@ -256,7 +253,6 @@
           ></a-sphere>
         </a-entity>
 
-        <!-- Wisp 3 -->
         <a-entity
           position="0 4 -18"
           animation="property: position; from: 0 4 -18; to: 6 4 -18; dur: 5000; dir: alternate; loop: true"
@@ -276,7 +272,7 @@
       <a-entity id="final-area" position="0 0 -25">
         <a-entity
           gltf-model="#table-model"
-          position="-2 0 0"
+          position="-3 0 0"
           scale="0.15 0.15 0.15"
         >
           <a-entity
@@ -309,11 +305,11 @@
           id="cauldron"
           class="clickable"
           gltf-model="#cauldron-model"
-          position="1 0 0"
+          position="-0.5 0 0"
           scale="0.2 0.2 0.2"
         ></a-entity>
 
-        <a-entity id="cat-jail-setup" position="8 0 -2">
+        <a-entity id="cat-jail-setup" position="4 0 -2">
           <a-entity
             id="rune-stone"
             gltf-model="#rune-stone-model"
@@ -338,19 +334,9 @@
             material="opacity: 0.15; transparent: true"
           ></a-sphere>
         </a-entity>
-
-        <a-entity id="energy-crystal" class="clickable" position="15 1.5 -2">
-          <a-octahedron
-            radius="0.7"
-            color="#00ffff"
-            opacity="0.8"
-          ></a-octahedron>
-        </a-entity>
       </a-entity>
 
-      <!-- Rig: mantém posição em modo VR e desktop. Câmera e controles são filhos. -->
       <a-entity id="rig" position="0 0 -10">
-        <!-- Câmera -->
         <a-entity
           id="player-camera"
           camera
@@ -393,7 +379,6 @@
           </a-entity>
         </a-entity>
 
-        <!-- Controle direito Meta Quest 2: raycaster visual + trigger para interação -->
         <a-entity
           id="right-controller"
           oculus-touch-controls="hand: right"
@@ -401,7 +386,6 @@
           vr-interactor
         ></a-entity>
 
-        <!-- Controle esquerdo Meta Quest 2 -->
         <a-entity
           id="left-controller"
           oculus-touch-controls="hand: left"
