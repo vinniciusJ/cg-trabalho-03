@@ -7,6 +7,108 @@
     <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
 
     <script>
+      // Canvas-text: renderiza texto num <canvas> HTML e aplica como textura num a-plane.
+      // Essa é a única abordagem que aparece de forma confiável na gravação do Quest 3,
+      // pois a textura vive na GPU como um material Three.js normal, sem depender de
+      // camadas de composição extras que o gravador do Quest ignora.
+      AFRAME.registerComponent("canvas-text", {
+        schema: {
+          value:     { type: "string",  default: "" },
+          color:     { type: "string",  default: "#d1b2ff" },
+          bgColor:   { type: "string",  default: "#1a0033" },
+          fontSize:  { type: "number",  default: 28 },
+          width:     { type: "number",  default: 512 },
+          height:    { type: "number",  default: 128 },
+          padding:   { type: "number",  default: 20 },
+        },
+
+        init: function () {
+          this.canvas  = document.createElement("canvas");
+          this.ctx     = this.canvas.getContext("2d");
+          this.texture = new THREE.CanvasTexture(this.canvas);
+          this.update();
+
+          // Aplica a textura assim que o mesh estiver disponível
+          this.el.addEventListener("loaded", () => this._applyTexture());
+          // Tenta aplicar imediatamente caso já esteja pronto
+          this._applyTexture();
+        },
+
+        _applyTexture: function () {
+          const mesh = this.el.getObject3D("mesh");
+          if (mesh) {
+            mesh.material.map = this.texture;
+            mesh.material.color.set("#ffffff"); // remove tint do a-plane
+            mesh.material.needsUpdate = true;
+          }
+        },
+
+        update: function () {
+          const { value, color, bgColor, fontSize, width, height, padding } = this.data;
+          const canvas = this.canvas;
+          const ctx    = this.ctx;
+
+          canvas.width  = width;
+          canvas.height = height;
+
+          // Fundo
+          ctx.fillStyle = bgColor;
+          ctx.roundRect ? ctx.roundRect(0, 0, width, height, 16) : ctx.fillRect(0, 0, width, height);
+          ctx.fill();
+
+          // Texto com quebra de linha automática
+          ctx.fillStyle   = color;
+          ctx.font        = `${fontSize}px Arial, sans-serif`;
+          ctx.textAlign   = "center";
+          ctx.textBaseline = "middle";
+
+          const maxW = width - padding * 2;
+          const lines = this._wrapText(ctx, value, maxW);
+          const lineH = fontSize * 1.35;
+          const totalH = lines.length * lineH;
+          let y = (height - totalH) / 2 + lineH / 2;
+
+          for (const line of lines) {
+            ctx.fillText(line, width / 2, y);
+            y += lineH;
+          }
+
+          if (this.texture) {
+            this.texture.needsUpdate = true;
+          }
+        },
+
+        _wrapText: function (ctx, text, maxWidth) {
+          const paragraphs = text.split("\n");
+          const result = [];
+          for (const para of paragraphs) {
+            const words = para.split(" ");
+            let line = "";
+            for (const word of words) {
+              const test = line ? line + " " + word : word;
+              if (ctx.measureText(test).width > maxWidth && line) {
+                result.push(line);
+                line = word;
+              } else {
+                line = test;
+              }
+            }
+            if (line) result.push(line);
+          }
+          return result.length ? result : [""];
+        },
+
+        // Expõe método para atualizar só o texto sem recriar tudo
+        setText: function (value) {
+          this.data.value = value;
+          this.update();
+        },
+        setColor: function (color) {
+          this.data.color = color;
+          this.update();
+        },
+      });
+
       AFRAME.registerComponent("vr-interactor", {
         init: function () {
           const el = this.el;
@@ -32,7 +134,6 @@
           this.wispsCaught = 0;
 
           const instructions = document.querySelector("#hud-text");
-          const hudBg = document.querySelector("#hud-bg");
           const restartBtn = document.querySelector("#restart-ui");
           const playBtn = document.querySelector("#play-ui");
           const rig = document.querySelector("#rig");
@@ -43,24 +144,36 @@
             "potion-blue": "a Essencia do Firmamento",
           };
 
+          // Helper: atualiza texto via canvas-text component
+          function setText(el, value) {
+            const comp = el.components["canvas-text"];
+            if (comp) comp.setText(value);
+          }
+
           document.querySelector("#lizard").addEventListener("click", () => {
-            instructions.setAttribute("value", "O seu gatinho foi raptado e eu estou aqui para te ajudar. Para saber mais, abra o Diario Mistico ao meu lado.");
+            setText(
+              instructions,
+              "O seu gatinho foi raptado e eu estou aqui para te ajudar. Para saber mais, abra o Diario Mistico ao meu lado."
+            );
           });
 
           document.querySelector("#magic-tome").addEventListener("click", () => {
-            instructions.setAttribute("wrap-count", "40");
-            instructions.setAttribute("value", "Para liberar o gatinho capture as 3 sombras errantes para quebrar o escudo e depois prepare a pocao no caldeirao para liberta-lo");
+            setText(
+              instructions,
+              "Para liberar o gatinho capture as 3 sombras errantes para quebrar o escudo e depois prepare a pocao no caldeirao para liberta-lo"
+            );
             playBtn.setAttribute("visible", "true");
             playBtn.setAttribute("scale", "1 1 1");
           });
 
           playBtn.addEventListener("click", () => {
-            rig.setAttribute("animation", "property: position; to: 0 0 -10; dur: 1500; easing: easeInOutQuad");
+            rig.setAttribute(
+              "animation",
+              "property: position; to: 0 0 -10; dur: 1500; easing: easeInOutQuad"
+            );
             playBtn.setAttribute("visible", "false");
             playBtn.setAttribute("scale", "0.001 0.001 0.001");
-            hudBg.setAttribute("height", "0.25");
-            instructions.setAttribute("wrap-count", "40");
-            instructions.setAttribute("value", "Capture as 3 Sombras Errantes!");
+            setText(instructions, "Capture as 3 Sombras Errantes!");
           });
 
           window.pickUp = (el) => {
@@ -70,24 +183,35 @@
             el.setAttribute("position", "0.3 -0.4 -0.8");
             el.setAttribute("scale", "0.1 0.1 0.1");
             document.querySelector("#player-camera").appendChild(el);
-            instructions.setAttribute("value", "Voce pegou " + (itemLore[el.id] || "o item") + ".");
+            setText(
+              instructions,
+              "Voce pegou " + (itemLore[el.id] || "o item") + "."
+            );
           };
 
           window.catchWisp = (el) => {
-            if (this.gameOver || el.getAttribute('data-caught')) return;
-            el.setAttribute('data-caught', 'true');
+            if (this.gameOver || el.getAttribute("data-caught")) return;
+            el.setAttribute("data-caught", "true");
             el.setAttribute("visible", "false");
             el.classList.remove("clickable");
             this.wispsCaught++;
 
             if (this.wispsCaught < 3) {
-              instructions.setAttribute("value", `Sombra capturada! Faltam ${3 - this.wispsCaught}.`);
+              setText(
+                instructions,
+                `Sombra capturada! Faltam ${3 - this.wispsCaught}.`
+              );
             } else {
               this.shieldDown = true;
               document.querySelector("#shield").setAttribute("visible", "false");
-              rig.setAttribute("animation", "property: position; to: 0 0 -21; dur: 1500; easing: easeInOutQuad");
-              hudBg.setAttribute("height", "0.4");
-              instructions.setAttribute("value", "O escudo foi quebrado! Siga para a preparaca da pocao. \n Obs: utilize a ordem: verde, rosa e azul.");
+              rig.setAttribute(
+                "animation",
+                "property: position; to: 0 0 -21; dur: 1500; easing: easeInOutQuad"
+              );
+              setText(
+                instructions,
+                "O escudo foi quebrado! Siga para a preparaca da pocao. \n Obs: utilize a ordem: verde, rosa e azul."
+              );
             }
           };
 
@@ -100,27 +224,44 @@
             const heldId = this.heldItem.id;
             let correct = false;
 
-            if (heldId === "potion-green" && this.potionState === 0) { this.potionState = 1; correct = true; } 
-            else if (heldId === "potion-pink" && this.potionState === 1) { this.potionState = 2; correct = true; } 
-            else if (heldId === "potion-blue" && this.potionState === 2) { this.potionState = 3; correct = true; }
+            if (heldId === "potion-green" && this.potionState === 0) {
+              this.potionState = 1;
+              correct = true;
+            } else if (heldId === "potion-pink" && this.potionState === 1) {
+              this.potionState = 2;
+              correct = true;
+            } else if (heldId === "potion-blue" && this.potionState === 2) {
+              this.potionState = 3;
+              correct = true;
+            }
 
             if (correct) {
               this.heldItem.setAttribute("visible", "false");
               this.isHoldingItem = false;
               this.heldItem = null;
-              instructions.setAttribute("value", this.potionState === 3 ? "O gatinho está sendo liberto!" : "Essencia aceita...");
+              setText(
+                instructions,
+                this.potionState === 3
+                  ? "O gatinho esta sendo liberto!"
+                  : "Essencia aceita..."
+              );
             } else if (heldId.includes("potion")) {
               this.gameOver = true;
-              instructions.setAttribute("value", "Ordem errada! O sonho colapsou.");
-              instructions.setAttribute("color", "#ff4444");
+              setText(instructions, "Ordem errada! O sonho colapsou.");
+              // Cor vermelha via canvas-text
+              const comp = instructions.components["canvas-text"];
+              if (comp) comp.setColor("#ff4444");
               restartBtn.setAttribute("visible", "true");
               restartBtn.setAttribute("scale", "1 1 1");
               restartBtn.classList.add("clickable");
             }
 
             if (this.potionState === 3 && !this.isHoldingItem) {
-              document.querySelector("#cage").setAttribute("animation", "property: position; to: 1.5 20 -2; dur: 4000; easing: easeInBack");
-              instructions.setAttribute("value", "O gatinho foi libertado!");
+              document.querySelector("#cage").setAttribute(
+                "animation",
+                "property: position; to: 1.5 20 -2; dur: 4000; easing: easeInBack"
+              );
+              setText(instructions, "O gatinho foi libertado!");
             }
           });
         },
@@ -128,7 +269,12 @@
     </script>
   </head>
   <body>
-    <a-scene game-logic cursor="rayOrigin: mouse" raycaster="objects: .clickable" fog="type: exponential; color: #000; density: 0.06">
+    <a-scene
+      game-logic
+      cursor="rayOrigin: mouse"
+      raycaster="objects: .clickable"
+      fog="type: exponential; color: #000; density: 0.06"
+    >
       <a-assets>
         <a-asset-item id="lizard-model" src="lizard_wizard.glb"></a-asset-item>
         <a-asset-item id="tome-model" src="magic_tome.glb"></a-asset-item>
@@ -136,70 +282,221 @@
         <a-asset-item id="cage-model" src="cage.glb"></a-asset-item>
         <a-asset-item id="cauldron-model" src="cauldron.glb"></a-asset-item>
         <a-asset-item id="table-model" src="table.glb"></a-asset-item>
-        <a-asset-item id="rune-stone-model" src="ancient_rune_stone.glb"></a-asset-item>
+        <a-asset-item
+          id="rune-stone-model"
+          src="ancient_rune_stone.glb"
+        ></a-asset-item>
         <a-asset-item id="p-green" src="green-potion.glb"></a-asset-item>
         <a-asset-item id="p-pink" src="pink-potion.glb"></a-asset-item>
         <a-asset-item id="p-blue" src="blue-potion.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity environment="preset: dream; dressingAmount: 0; ground: flat; lighting: none;"></a-entity>
-      <a-light type="point" intensity="1.2" position="0 10 -10" color="#ffb6c1"></a-light>
+      <a-entity
+        environment="preset: dream; dressingAmount: 0; ground: flat; lighting: none;"
+      ></a-entity>
+      <a-light
+        type="point"
+        intensity="1.2"
+        position="0 10 -10"
+        color="#ffb6c1"
+      ></a-light>
       <a-light type="ambient" intensity="0.4"></a-light>
 
-      <a-entity id="lizard" class="clickable" gltf-model="#lizard-model" position="1.2 1.2 2" scale="0.3 0.3 0.3" rotation="0 -40 0"></a-entity>
-      <a-entity id="magic-tome" class="clickable" gltf-model="#tome-model" position="-1.2 0.6 2" scale="0.4 0.4. 0.4" rotation="0 40 0"></a-entity>
+      <a-entity
+        id="lizard"
+        class="clickable"
+        gltf-model="#lizard-model"
+        position="1.2 1.2 2"
+        scale="0.3 0.3 0.3"
+        rotation="0 -40 0"
+      ></a-entity>
+      <a-entity
+        id="magic-tome"
+        class="clickable"
+        gltf-model="#tome-model"
+        position="-1.2 0.6 2"
+        scale="0.4 0.4 0.4"
+        rotation="0 40 0"
+      ></a-entity>
 
       <a-entity id="wisp-container">
-        <a-entity position="5 3 -22" animation="property: position; to: -5 5 -22; dur: 3000; dir: alternate; loop: true">
-          <a-sphere class="wisp clickable" radius="0.5" color="#111" material="emissive: #4b0082; emissiveIntensity: 2" onclick="catchWisp(this)"></a-sphere>
+        <a-entity
+          position="5 3 -22"
+          animation="property: position; to: -5 5 -22; dur: 3000; dir: alternate; loop: true"
+        >
+          <a-sphere
+            class="wisp clickable"
+            radius="0.5"
+            color="#111"
+            material="emissive: #4b0082; emissiveIntensity: 2"
+            onclick="catchWisp(this)"
+          ></a-sphere>
         </a-entity>
-        <a-entity position="-8 2 -20" animation="property: position; to: 8 4 -20; dur: 4000; dir: alternate; loop: true">
-          <a-sphere class="wisp clickable" radius="0.5" color="#111" material="emissive: #00ffff; emissiveIntensity: 2" onclick="catchWisp(this)"></a-sphere>
+        <a-entity
+          position="-8 2 -20"
+          animation="property: position; to: 8 4 -20; dur: 4000; dir: alternate; loop: true"
+        >
+          <a-sphere
+            class="wisp clickable"
+            radius="0.5"
+            color="#111"
+            material="emissive: #00ffff; emissiveIntensity: 2"
+            onclick="catchWisp(this)"
+          ></a sphere>
         </a-entity>
-        <a-entity position="0 6 -24" animation="property: position; to: 0 1 -24; dur: 5000; dir: alternate; loop: true">
-          <a-sphere class="wisp clickable" radius="0.5" color="#111" material="emissive: #ff00ff; emissiveIntensity: 2" onclick="catchWisp(this)"></a-sphere>
+        <a-entity
+          position="0 6 -24"
+          animation="property: position; to: 0 1 -24; dur: 5000; dir: alternate; loop: true"
+        >
+          <a-sphere
+            class="wisp clickable"
+            radius="0.5"
+            color="#111"
+            material="emissive: #ff00ff; emissiveIntensity: 2"
+            onclick="catchWisp(this)"
+          ></a-sphere>
         </a-entity>
       </a-entity>
 
       <a-entity id="final-area" position="0 0 -25">
-        <a-entity gltf-model="#table-model" position="-3 0 0" scale="0.15 0.15 0.15">
-          <a-entity id="potion-green" class="clickable" gltf-model="#p-green" position="-3 5 0" scale="3 3 3" onclick="pickUp(this)"></a-entity>
-          <a-entity id="potion-pink" class="clickable" gltf-model="#p-pink" position="0 6 0" scale="2 2 2" onclick="pickUp(this)"></a-entity>
-          <a-entity id="potion-blue" class="clickable" gltf-model="#p-blue" position="3 5 0" scale="0.2 0.2 0.2" onclick="pickUp(this)"></a-entity>
+        <a-entity
+          gltf-model="#table-model"
+          position="-3 0 0"
+          scale="0.15 0.15 0.15"
+        >
+          <a-entity
+            id="potion-green"
+            class="clickable"
+            gltf-model="#p-green"
+            position="-3 5 0"
+            scale="3 3 3"
+            onclick="pickUp(this)"
+          ></a-entity>
+          <a-entity
+            id="potion-pink"
+            class="clickable"
+            gltf-model="#p-pink"
+            position="0 6 0"
+            scale="2 2 2"
+            onclick="pickUp(this)"
+          ></a-entity>
+          <a-entity
+            id="potion-blue"
+            class="clickable"
+            gltf-model="#p-blue"
+            position="3 5 0"
+            scale="0.2 0.2 0.2"
+            onclick="pickUp(this)"
+          ></a-entity>
         </a-entity>
-        <a-entity id="cauldron" class="clickable" gltf-model="#cauldron-model" position="0 0 0" scale="0.2 0.2 0.2"></a-entity>
+        <a-entity
+          id="cauldron"
+          class="clickable"
+          gltf-model="#cauldron-model"
+          position="0 0 0"
+          scale="0.2 0.2 0.2"
+        ></a-entity>
         <a-entity id="cat-jail-setup" position="4 0 -2">
           <a-entity gltf-model="#rune-stone-model" scale="3 3 3"></a-entity>
-          <a-entity id="cat" gltf-model="#cat-model" position="0 1 0" scale="0.3 0.3 0.3"></a-entity>
-          <a-entity id="cage" gltf-model="#cage-model" position="0 1 0" scale="1.2 1.2 1.2"></a-entity>
-          <a-sphere id="shield" radius="3.2" color="#ff00ff" material="opacity: 0.15; transparent: true"></a-sphere>
+          <a-entity
+            id="cat"
+            gltf-model="#cat-model"
+            position="0 1 0"
+            scale="0.3 0.3 0.3"
+          ></a-entity>
+          <a-entity
+            id="cage"
+            gltf-model="#cage-model"
+            position="0 1 0"
+            scale="1.2 1.2 1.2"
+          ></a-entity>
+          <a-sphere
+            id="shield"
+            radius="3.2"
+            color="#ff00ff"
+            material="opacity: 0.15; transparent: true"
+          ></a-sphere>
         </a-entity>
       </a-entity>
 
       <a-entity id="rig" position="0 0 6">
-        <a-entity id="player-camera" camera look-controls wasd-controls position="0 1.6 0">
+        <a-entity
+          id="player-camera"
+          camera
+          look-controls
+          wasd-controls
+          position="0 1.6 0"
+        >
           <a-cursor color="#fff"></a-cursor>
-          <a-entity position="0 0.8 -1.2">
-            <a-plane id="hud-bg" width="1.4" height="0.35" color="#1a0033" opacity="0.9"></a-plane>
-            <a-text id="hud-text" font="dejavu" value="Boas vindas ao mundo dos sonhos. Clique no Lizard Wizard para comecar..." align="center" width="1.3" color="#d1b2ff" position="0 0 0.05"></a-text>
+
+          <!--
+            CORREÇÃO GRAVAÇÃO QUEST 3:
+            canvas-text renderiza o texto num <canvas> HTML e aplica como textura
+            Three.js num <a-plane>. Isso garante visibilidade na gravação porque
+            a textura é tratada como material 3D comum, sem depender de camadas
+            de composição extras que o gravador do Quest frequentemente ignora.
+          -->
+          <a-entity position="0 -0.7 -1.2">
+            <!-- O plano É o texto: canvas-text desenha fundo + texto na mesma textura -->
+            <a-plane
+              id="hud-text"
+              canvas-text="
+                value: Boas vindas ao mundo dos sonhos. Clique no Lizard Wizard para comecar...;
+                color: #d1b2ff;
+                bgColor: #1a0033;
+                fontSize: 26;
+                width: 512;
+                height: 100;
+                padding: 16"
+              width="1.3"
+              height="0.22"
+              color="#1a0033"
+              position="0 0 0.01"
+            ></a-plane>
           </a-entity>
 
-          <a-entity position="0 -0.2 -1.1">
-            <a-plane id="play-ui" class="clickable" width="0.6" height="0.2" color="#2ecc71" visible="false" scale="0.001 0.001 0.001">
-              <a-text font="dejavu" value="INICIAR" align="center" width="2" color="white" position="0 0 0.05"></a-text>
-            </a-plane>
+          <a-entity position="0 -0.45 -1.1">
+            <a-plane
+              id="play-ui"
+              class="clickable"
+              canvas-text="value: INICIAR; color: white; bgColor: #2ecc71; fontSize: 36; width: 256; height: 80"
+              width="0.6"
+              height="0.2"
+              visible="false"
+              scale="0.001 0.001 0.001"
+            ></a-plane>
           </a-entity>
 
-          <a-entity id="restart-ui" position="0 0 -1.5" visible="false" scale="0.001 0.001 0.001">
-            <a-plane width="0.8" height="0.25" color="#aa0000"></a-plane>
-            <a-text font="dejavu" value="RECORDE O SONHO" align="center" width="2" color="white" position="0 0 0.05"></a-text>
+          <a-entity
+            id="restart-ui"
+            position="0 -0.15 -1.5"
+            visible="false"
+            scale="0.001 0.001 0.001"
+          >
+            <a-plane
+              canvas-text="value: RECORDE O SONHO; color: white; bgColor: #aa0000; fontSize: 32; width: 320; height: 80"
+              width="0.8"
+              height="0.25"
+            ></a-plane>
           </a-entity>
         </a-entity>
 
-        <a-entity oculus-touch-controls="hand: right" raycaster="objects: .clickable; showLine: true; far: 40" vr-interactor></a-entity>
-        <a-entity oculus-touch-controls="hand: right" raycaster="objects: .clickable; showLine: true; lineColor: #d1b2ff; far: 40" vr-interactor></a-entity>
+        <a-entity
+          oculus-touch-controls="hand: right"
+          raycaster="objects: .clickable; showLine: true; far: 40"
+          vr-interactor
+        ></a-entity>
+        <a-entity
+          oculus-touch-controls="hand: right"
+          raycaster="objects: .clickable; showLine: true; lineColor: #d1b2ff; far: 40"
+          vr-interactor
+        ></a-entity>
 
-        <a-entity oculus-touch-controls="hand: left" raycaster="objects: .clickable; showLine: true; lineColor: #d1b2ff; far: 40" vr-interactor></a-entity>
+        <a-entity
+          oculus-touch-controls="hand: left"
+          raycaster="objects: .clickable; showLine: true; lineColor: #d1b2ff; far: 40"
+          vr-interactor
+        ></a-entity>
       </a-entity>
     </a-scene>
   </body>
