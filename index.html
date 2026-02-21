@@ -162,6 +162,8 @@
               instructions,
               "Para liberar o gatinho capture as 3 sombras errantes para quebrar o escudo e depois prepare a pocao no caldeirao para liberta-lo"
             );
+            // Esconde o texto e mostra o botão no lugar
+            instructions.setAttribute("visible", "false");
             playBtn.setAttribute("visible", "true");
             playBtn.setAttribute("scale", "1 1 1");
           });
@@ -173,6 +175,8 @@
             );
             playBtn.setAttribute("visible", "false");
             playBtn.setAttribute("scale", "0.001 0.001 0.001");
+            // Mostra o texto novamente
+            instructions.setAttribute("visible", "true");
             setText(instructions, "Capture as 3 Sombras Errantes!");
           });
 
@@ -436,7 +440,7 @@
             a textura é tratada como material 3D comum, sem depender de camadas
             de composição extras que o gravador do Quest frequentemente ignora.
           -->
-          <a-entity position="0 -0.7 -1.2">
+          <a-entity position="0 -0.1 -1.2">
             <!-- O plano É o texto: canvas-text desenha fundo + texto na mesma textura -->
             <a-plane
               id="hud-text"
@@ -455,7 +459,7 @@
             ></a-plane>
           </a-entity>
 
-          <a-entity position="0 -0.45 -1.1">
+          <a-entity position="0 -0.1 -1.2">
             <a-plane
               id="play-ui"
               class="clickable"
